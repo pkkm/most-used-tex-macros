@@ -57,7 +57,7 @@ class Repo:
     extract_path: str
 
 def get_repo(repo, remove_after_extraction=False, progress_str=None):
-    """Download and extract the Repo object `repo`."""
+    """Download and extract the `Repo` object `repo`."""
 
     if progress_str is not None:
         progress_formatted = " ({})".format(progress_str)
@@ -115,26 +115,44 @@ def parse_args():
 
     return parser.parse_args()
 
-def main():
-    """Main entry point."""
-
-    args = parse_args()
+def get_repo_search_results(ghub, n_repos, *args, **kwargs):
+    """Get `n_repos` results from the search described by `args` and `kwargs`
+    (which will be passed to `search_repositories`). Retrieve all the results
+    instead of lazy-loading them to minimize the chance of the results changing
+    while we're searching.
+    """
 
     message("Getting search results")
 
-    gh = github.Github(args.token)
-    repos = gh.search_repositories(
-        "stars:>0 language:{}".format(args.language),
-        sort="stars", order="desc")
+    search_results = ghub.search_repositories(*args, **kwargs)
 
-    to_download = []
-    for repo in repos[:args.n_repos]:
+    result = []
+
+    for i_repo, repo in enumerate(search_results[:n_repos]):
         message(
-            "Getting search results ({}/{})".format(
-                len(to_download) + 1, args.n_repos),
+            "Getting search results ({}/{})".format(i_repo + 1, n_repos),
             overwrite_prev_line=True)
 
-        to_download.append(Repo(
+        result.append(repo)
+
+    return result
+
+def get_repo_data(repos):
+    """Convert `github.Repository.Repository` objects into `Repo` by retrieving
+    appropriate information.
+    """
+
+    message("Getting repository data")
+
+    result = []
+
+    for i_repo, repo in repos:
+        message(
+            "Getting repository data ({}/{})".format(
+                i_repo + 1, len(repos)),
+            overwrite_prev_line=True)
+
+        result.append(Repo(
             name=repo.full_name,
             tarball_url=repo.get_archive_link("tarball"),
             archive_path=os.path.join(
@@ -143,6 +161,24 @@ def main():
             extract_path=os.path.join(
                 "repos", "extracted", "{} {}".format(
                     repo.owner.login, repo.name))))
+
+    return result
+
+def main():
+    """Main entry point."""
+
+    args = parse_args()
+
+    ghub = github.Github(args.token)
+
+    repos = get_repo_search_results(
+        ghub,
+        args.n_repos,
+        "stars:>0 language:{}".format(args.language),
+        sort="stars",
+        order="desc")
+
+    to_download = get_repo_data(repos)
 
     os.makedirs(os.path.join("repos", "archives"), exist_ok=True)
     os.makedirs(os.path.join("repos", "extracted"), exist_ok=True)
