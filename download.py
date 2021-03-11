@@ -8,6 +8,8 @@ import subprocess
 import sys
 import dataclasses
 import argparse
+import time
+import datetime
 import github
 import requests
 
@@ -107,7 +109,7 @@ def parse_args():
     parser.add_argument(
         "--token",
         help="GitHub token (recommended because authenticated users have " +
-        "a higher rate limit)")
+        "higher rate limits)")
 
     parser.add_argument(
         "--language", default="TeX",
@@ -129,9 +131,27 @@ def get_repo_search_results(ghub, n_repos, *args, **kwargs):
     result = []
 
     for i_repo, repo in enumerate(search_results[:n_repos]):
+        # Respect the rate limit for search. Workaround for
+        # <https://github.com/PyGithub/PyGithub/issues/1319> (the github module
+        # uses the global rate limit while ignoring the search-specific one).
+        if (i_repo + 1) % 30 == 0:
+            limit = ghub.get_rate_limit() # This doesn't count towards the limit.
+            if limit.search.remaining == 0:
+                now = datetime.datetime.now(datetime.timezone.utc)
+                reset = limit.search.reset.replace(tzinfo=datetime.timezone.utc)
+                seconds_to_sleep = (reset - now).total_seconds() + 5
+        else:
+            seconds_to_sleep = 0
+
         message(
-            "Getting search results ({}/{})".format(i_repo + 1, n_repos),
+            "Getting search results ({}/{}{})".format(
+                i_repo + 1,
+                n_repos,
+                ", waiting due to rate limit" if seconds_to_sleep > 0 else ""),
             overwrite_prev_line=True)
+
+        if seconds_to_sleep > 0:
+            time.sleep(seconds_to_sleep)
 
         result.append(repo)
 
