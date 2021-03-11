@@ -21,17 +21,25 @@ def message(text, overwrite_prev_line=False, file_=sys.stderr):
     else:
         print(text, file=file_)
 
-def download_file(method, url, file_, **kwargs):
+def download_file(
+        method, url, file_, progress_callback=lambda: None, **kwargs):
     """Download a file without loading the entire response into memory.
-    Example: `download_file("GET", "http://google.com", "google.html")`
+    Example: `download_file("GET", "https://google.com", "google.html")`
     """
 
     response = requests.request(method, url, stream=True, **kwargs)
     response.raise_for_status() # Throw an error for bad status codes.
 
+    bytes_total = response.headers.get("content-length")
+    if bytes_total is not None:
+        bytes_total = int(bytes_total)
+    bytes_downloaded = 0
+
     with open(file_, "wb") as handle:
-        for block in response.iter_content(1024 * 1024):
+        for block in response.iter_content(32 * 1024):
             handle.write(block)
+            bytes_downloaded += len(block)
+            progress_callback(bytes_downloaded, bytes_total)
 
 def extract_tar(archive, directory, strip_components=0):
     """Extract `archive` into `directory`."""
@@ -57,8 +65,21 @@ def get_repo(repo, remove_after_extraction=False, progress_str=None):
 
     message("Downloading{}: {}".format(progress_formatted, repo.name))
 
+    def download_progress(bytes_downloaded, bytes_total):
+        download_progress_str = ""
+        if bytes_total is not None and bytes_total > 0:
+            download_progress_str += "{:.1%}, ".format(
+                bytes_downloaded / bytes_total)
+        download_progress_str += "{:.1f} MiB".format(
+            bytes_downloaded / (1024 * 1024))
+
+        message(
+            "Downloading{}: {} ({})".format(
+                progress_formatted, repo.name, download_progress_str),
+            overwrite_prev_line=True)
+
     os.makedirs(os.path.dirname(repo.archive_path), exist_ok=True)
-    download_file("GET", repo.tarball_url, repo.archive_path)
+    download_file("GET", repo.tarball_url, repo.archive_path, download_progress)
 
     message("Extracting{}: {}".format(progress_formatted, repo.name))
 
