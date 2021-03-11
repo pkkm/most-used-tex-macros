@@ -14,16 +14,15 @@ import Control.Applicative ((<|>))
 import Data.Monoid ((<>))
 import Data.List (foldl', sortBy)
 import Data.Ord (comparing)
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import qualified Data.Attoparsec.Text as P
-import Data.Attoparsec.Text (Parser)
 import qualified System.IO as IO
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Text (Text)
 import System.FilePath ((</>))
 import System.FilePath.Find ((==?), (&&?), (||?))
-import qualified System.FilePath.Find as F
+import qualified System.FilePath.Find as Find
 import qualified Data.Counter as Counter
 import qualified Formatting.Formatters as Format
 import Formatting (format, (%))
@@ -51,17 +50,17 @@ import Formatting (format, (%))
 
 data Macro = Macro Text deriving (Eq, Show)
 
-parseMacroName :: Parser Text
+parseMacroName :: P.Parser Text
 parseMacroName = P.takeWhile1 $ P.inClass "a-zA-Z@"
 
-parseEnv :: Parser Macro
+parseEnv :: P.Parser Macro
 parseEnv = do
   P.string "\\begin{"
   name <- parseMacroName
   P.char '}'
   return $ Macro $ "begin{" <> name <> "}"
 
-parseMacro :: Parser Macro
+parseMacro :: P.Parser Macro
 parseMacro = do
   P.char '\\'
   name <- parseMacroName
@@ -70,11 +69,11 @@ parseMacro = do
     else return $ Macro name
 
 -- Get all matches of a parser (like in a regular expression library).
-allMatches :: Parser a -> Parser [a]
+allMatches :: P.Parser a -> P.Parser [a]
 allMatches parser = P.many' loop
   where loop = parser <|> (P.anyChar >> loop)
 
-parseTexFile :: Parser [Macro]
+parseTexFile :: P.Parser [Macro]
 parseTexFile = allMatches $ parseEnv <|> parseMacro
 
 -- * Macro statistics data structure.
@@ -99,7 +98,7 @@ printStats :: MacroStats -> IO ()
 printStats stats = do
   --putStrLn "Most popular macros:"
   mapM_ printLine tuples
-    where tuples = sortBy (flip $ comparing snd) $ M.toList stats
+    where tuples = sortBy (flip $ comparing snd) $ Map.toList stats
           printLine (macro, count) =
             TLIO.putStrLn $
               format (Format.left 8 ' ' % "  " % Format.stext) count macro
@@ -121,9 +120,9 @@ updateStatsFromFile stats path = do
   return $ updateStatsFromText stats contents
 
 texFiles :: IO [FilePath]
-texFiles = F.find (return True) isTexFile $ "repos" </> "extracted"
-  where isTexFile = F.fileType ==? F.RegularFile &&?
-          (F.extension ==? ".tex" ||? F.extension ==? ".TEX")
+texFiles = Find.find (return True) isTexFile $ "repos" </> "extracted"
+  where isTexFile = Find.fileType ==? Find.RegularFile &&?
+          (Find.extension ==? ".tex" ||? Find.extension ==? ".TEX")
 
 finalStats :: IO MacroStats
 finalStats = texFiles >>= foldM updateStatsFromFile initStats
