@@ -21,14 +21,15 @@ def message(text, overwrite_prev_line=False, file_=sys.stderr):
     else:
         print(text, file=file_)
 
-def download_file(method, url, file, **kwargs):
-    """Download a file without loading the entire response into memory."""
-    # E.g. download_file("GET", "http://google.com", "google.html")
+def download_file(method, url, file_, **kwargs):
+    """Download a file without loading the entire response into memory.
+    Example: `download_file("GET", "http://google.com", "google.html")`
+    """
 
     response = requests.request(method, url, stream=True, **kwargs)
     response.raise_for_status() # Throw an error for bad status codes.
 
-    with open(file, "wb") as handle:
+    with open(file_, "wb") as handle:
         for block in response.iter_content(1024 * 1024):
             handle.write(block)
 
@@ -41,15 +42,25 @@ def extract_tar(archive, directory, strip_components=0):
     # An alternative would be to use the `tarfile` module, but it has worse
     # security (it may extract outside the given directory).
 
-def download_repo(repo, remove_after_extraction=False):
+def get_repo(repo, remove_after_extraction=False, progress_str=None):
     """Download the GitHub repository `repo`."""
+
+    if progress_str is not None:
+        progress_formatted = " ({})".format(progress_str)
+    else:
+        progress_formatted = ""
+
     if os.path.isdir(repo.extracted_path):
-        message("Skipping (already downloaded): {}".format(repo.name))
+        message("Skipping already downloaded{}: {}".format(
+            progress_formatted, repo.name))
         return
-    message("Downloading: {}".format(repo.name))
+
+    message("Downloading{}: {}".format(progress_formatted, repo.name))
 
     os.makedirs(os.path.dirname(repo.archive_path), exist_ok=True)
     download_file("GET", repo.tarball_url, repo.archive_path)
+
+    message("Extracting{}: {}".format(progress_formatted, repo.name))
 
     os.makedirs(repo.extracted_path, exist_ok=True)
     extract_tar(repo.archive_path, repo.extracted_path, strip_components=1)
@@ -60,15 +71,16 @@ def download_repo(repo, remove_after_extraction=False):
 def main():
     """Main entry point."""
 
+    message("Getting search results")
+
     gh = github.Github(GITHUB_TOKEN)
     repos = gh.search_repositories(
         "stars:>0 language:{}".format(LANGUAGE), sort="stars", order="desc")
 
-    message("Getting search results")
     to_download = []
     for repo in repos[:N_TO_DOWNLOAD]:
         message(
-            "Getting search results ({} of {})".format(
+            "Getting search results ({}/{})".format(
                 len(to_download) + 1, N_TO_DOWNLOAD),
             overwrite_prev_line=True)
 
@@ -80,8 +92,10 @@ def main():
             extracted_path="extracted/{owner} {name}".format(
                 owner=repo.owner.login, name=repo.name)))
 
-    for repo_info in to_download:
-        download_repo(repo_info)
+    for i_repo, repo_info in enumerate(to_download):
+        get_repo(
+            repo_info,
+            progress_str="{}/{}".format(i_repo + 1, len(to_download)))
 
 if __name__ == "__main__":
     main()
