@@ -166,7 +166,7 @@ def get_repo_data(repos):
 
     result = []
 
-    for i_repo, repo in repos:
+    for i_repo, repo in enumerate(repos):
         message(
             "Getting repository data ({}/{})".format(
                 i_repo + 1, len(repos)),
