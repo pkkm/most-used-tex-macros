@@ -1,0 +1,5 @@
+/archives
+/extracted
+
+__pycache__/
+flycheck_*
