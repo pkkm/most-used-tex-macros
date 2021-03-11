@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
+# pylint: disable=too-few-public-methods
 
 """Download top GitHub repositories (by stars) in a given language."""
 
 import os
 import subprocess
-import types
 import sys
+import dataclasses
 import github
 import requests
 
@@ -50,8 +51,16 @@ def extract_tar(archive, directory, strip_components=0):
     # An alternative would be to use the `tarfile` module, but it has worse
     # security (it may extract outside the given directory).
 
+@dataclasses.dataclass
+class Repo:
+    """Information about a GitHub repository to download."""
+    name: str
+    tarball_url: str
+    archive_path: str
+    extracted_path: str
+
 def get_repo(repo, remove_after_extraction=False, progress_str=None):
-    """Download the GitHub repository `repo`."""
+    """Download and extract the Repo object `repo`."""
 
     if progress_str is not None:
         progress_formatted = " ({})".format(progress_str)
@@ -105,13 +114,13 @@ def main():
                 len(to_download) + 1, N_TO_DOWNLOAD),
             overwrite_prev_line=True)
 
-        to_download.append(types.SimpleNamespace(
+        to_download.append(Repo(
             name=repo.full_name,
             tarball_url=repo.get_archive_link("tarball"),
-            archive_path="archives/{owner} {name}.tar.gz".format(
-                owner=repo.owner.login, name=repo.name),
-            extracted_path="extracted/{owner} {name}".format(
-                owner=repo.owner.login, name=repo.name)))
+            archive_path=os.path.join("archives", "{} {}.tar.gz".format(
+                repo.owner.login, repo.name)),
+            extracted_path=os.path.join("extracted", "{} {}".format(
+                repo.owner.login, repo.name))))
 
     for i_repo, repo_info in enumerate(to_download):
         get_repo(
