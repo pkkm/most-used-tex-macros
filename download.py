@@ -54,7 +54,7 @@ class Repo:
     name: str
     tarball_url: str
     archive_path: str
-    extracted_path: str
+    extract_path: str
 
 def get_repo(repo, remove_after_extraction=False, progress_str=None):
     """Download and extract the Repo object `repo`."""
@@ -64,8 +64,8 @@ def get_repo(repo, remove_after_extraction=False, progress_str=None):
     else:
         progress_formatted = ""
 
-    if os.path.isdir(repo.extracted_path):
-        message("Skipping already downloaded{}: {}".format(
+    if os.path.isdir(repo.extract_path):
+        message("Skipping already extracted{}: {}".format(
             progress_formatted, repo.name))
         return
 
@@ -84,13 +84,12 @@ def get_repo(repo, remove_after_extraction=False, progress_str=None):
                 progress_formatted, repo.name, download_progress_str),
             overwrite_prev_line=True)
 
-    os.makedirs(os.path.dirname(repo.archive_path), exist_ok=True)
     download_file("GET", repo.tarball_url, repo.archive_path, download_progress)
 
     message("Extracting{}: {}".format(progress_formatted, repo.name))
 
-    os.makedirs(repo.extracted_path, exist_ok=True)
-    extract_tar(repo.archive_path, repo.extracted_path, strip_components=1)
+    os.mkdir(repo.extract_path)
+    extract_tar(repo.archive_path, repo.extract_path, strip_components=1)
 
     if remove_after_extraction:
         os.remove(repo.archive_path)
@@ -138,10 +137,15 @@ def main():
         to_download.append(Repo(
             name=repo.full_name,
             tarball_url=repo.get_archive_link("tarball"),
-            archive_path=os.path.join("archives", "{} {}.tar.gz".format(
-                repo.owner.login, repo.name)),
-            extracted_path=os.path.join("extracted", "{} {}".format(
-                repo.owner.login, repo.name))))
+            archive_path=os.path.join(
+                "repos", "archives", "{} {}.tar.gz".format(
+                    repo.owner.login, repo.name)),
+            extract_path=os.path.join(
+                "repos", "extracted", "{} {}".format(
+                    repo.owner.login, repo.name))))
+
+    os.makedirs(os.path.join("repos", "archives"), exist_ok=True)
+    os.makedirs(os.path.join("repos", "extracted"), exist_ok=True)
 
     for i_repo, repo_info in enumerate(to_download):
         get_repo(

@@ -2,6 +2,7 @@
 {- stack runhaskell --resolver lts-11.2 --install-ghc
      --package filemanip --package counter
      --package attoparsec --package formatting
+     --package filepath
      -- -Wall -Wextra -Wno-unused-do-bind -}
 -- Using `runhaskell` instead of the newer `script --optimize` because we need
 -- the `counter` package which is not in the lts-11.2 snapshot.
@@ -20,6 +21,7 @@ import qualified System.IO as IO
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Text (Text)
+import System.FilePath ((</>))
 import System.FilePath.Find ((==?), (&&?), (||?))
 import qualified System.FilePath.Find as F
 import qualified Data.Counter as Counter
@@ -119,7 +121,7 @@ updateStatsFromFile stats path = do
   return $ updateStatsFromText stats contents
 
 texFiles :: IO [FilePath]
-texFiles = F.find (return True) isTexFile "extracted"
+texFiles = F.find (return True) isTexFile $ "repos" </> "extracted"
   where isTexFile = F.fileType ==? F.RegularFile &&?
           (F.extension ==? ".tex" ||? F.extension ==? ".TEX")
 
