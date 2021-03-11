@@ -96,27 +96,6 @@ def get_repo(repo, remove_after_extraction=False, progress_str=None):
     if remove_after_extraction:
         os.remove(repo.archive_path)
 
-def parse_args():
-    """Parse command-line arguments."""
-
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    parser.add_argument(
-        "--n-repos", type=int, default=1000,
-        help="how many repositories to download")
-
-    parser.add_argument(
-        "--token",
-        help="GitHub token (recommended because authenticated users have " +
-        "higher rate limits)")
-
-    parser.add_argument(
-        "--language", default="TeX",
-        help="download repositories in this language")
-
-    return parser.parse_args()
-
 def get_repo_search_results(ghub, n_repos, *args, **kwargs):
     """Get `n_repos` results from the search described by `args` and `kwargs`
     (which will be passed to `search_repositories`). Retrieve all the results
@@ -183,6 +162,27 @@ def get_repo_data(repos):
                     repo.owner.login, repo.name))))
 
     return result
+
+def parse_args():
+    """Parse command-line arguments."""
+
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument(
+        "--n-repos", type=int, default=1000,
+        help="how many repositories to download")
+
+    parser.add_argument(
+        "--token",
+        help="GitHub token (recommended because authenticated users have " +
+        "higher rate limits)")
+
+    parser.add_argument(
+        "--language", default="TeX",
+        help="download repositories in this language")
+
+    return parser.parse_args()
 
 def main():
     """Main entry point."""
