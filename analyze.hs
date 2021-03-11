@@ -26,7 +26,7 @@ import qualified Data.Counter as Counter
 import qualified Formatting.Formatters as Format
 import Formatting (format, (%))
 
--- Parsing TeX files.
+-- * Parsing TeX files.
 
 -- In TeX, a macro can have 3 forms: an active character, a control word ("\"
 -- followed by a string of letters) and a control symbol ("\" followed by a
@@ -75,7 +75,7 @@ allMatches parser = P.many' loop
 parseTexFile :: Parser [Macro]
 parseTexFile = allMatches $ parseEnv <|> parseMacro
 
--- Macro statistics data structure.
+-- * Macro statistics data structure.
 
 type MacroStats = Counter.Counter Text Integer
 
@@ -91,7 +91,7 @@ updateStatsFromText stats text =
     Left err -> error $ "allMatches didn't match (should never happen): " <> err
     Right results -> foldl' updateStats stats results
 
--- I/O.
+-- * I/O.
 
 printStats :: MacroStats -> IO ()
 printStats stats = do
