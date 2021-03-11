@@ -7,12 +7,9 @@ import os
 import subprocess
 import sys
 import dataclasses
+import argparse
 import github
 import requests
-
-N_TO_DOWNLOAD = 1000
-LANGUAGE = "TeX"
-GITHUB_TOKEN = None
 
 def message(text, overwrite_prev_line=False, file_=sys.stderr):
     """Show a progress message."""
@@ -98,20 +95,44 @@ def get_repo(repo, remove_after_extraction=False, progress_str=None):
     if remove_after_extraction:
         os.remove(repo.archive_path)
 
+def parse_args():
+    """Parse command-line arguments."""
+
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument(
+        "--n-repos", type=int, default=1000,
+        help="how many repositories to download")
+
+    parser.add_argument(
+        "--token",
+        help="GitHub token (recommended because authenticated users have " +
+        "a higher rate limit)")
+
+    parser.add_argument(
+        "--language", default="TeX",
+        help="download repositories in this language")
+
+    return parser.parse_args()
+
 def main():
     """Main entry point."""
 
+    args = parse_args()
+
     message("Getting search results")
 
-    gh = github.Github(GITHUB_TOKEN)
+    gh = github.Github(args.token)
     repos = gh.search_repositories(
-        "stars:>0 language:{}".format(LANGUAGE), sort="stars", order="desc")
+        "stars:>0 language:{}".format(args.language),
+        sort="stars", order="desc")
 
     to_download = []
-    for repo in repos[:N_TO_DOWNLOAD]:
+    for repo in repos[:args.n_repos]:
         message(
             "Getting search results ({}/{})".format(
-                len(to_download) + 1, N_TO_DOWNLOAD),
+                len(to_download) + 1, args.n_repos),
             overwrite_prev_line=True)
 
         to_download.append(Repo(
