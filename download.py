@@ -110,6 +110,10 @@ def get_repo_search_results(ghub, n_repos, *args, **kwargs):
     result = []
 
     for i_repo, repo in enumerate(search_results[:n_repos]):
+        progress_str = "Getting search results ({}/{})".format(
+            i_repo + 1, n_repos)
+        message(progress_str, overwrite_prev_line=True)
+
         # Respect the rate limit for search. Workaround for
         # <https://github.com/PyGithub/PyGithub/issues/1319> (the github module
         # uses the global rate limit while ignoring the search-specific one).
@@ -119,18 +123,11 @@ def get_repo_search_results(ghub, n_repos, *args, **kwargs):
                 now = datetime.datetime.now(datetime.timezone.utc)
                 reset = limit.search.reset.replace(tzinfo=datetime.timezone.utc)
                 seconds_to_sleep = (reset - now).total_seconds() + 5
-        else:
-            seconds_to_sleep = 0
-
-        message(
-            "Getting search results ({}/{}{})".format(
-                i_repo + 1,
-                n_repos,
-                ", waiting due to rate limit" if seconds_to_sleep > 0 else ""),
-            overwrite_prev_line=True)
-
-        if seconds_to_sleep > 0:
-            time.sleep(seconds_to_sleep)
+                if seconds_to_sleep > 0:
+                    message(
+                        progress_str + " (waiting due to the rate limit)",
+                        overwrite_prev_line=True)
+                    time.sleep(seconds_to_sleep)
 
         result.append(repo)
 
