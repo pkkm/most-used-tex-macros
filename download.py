@@ -27,19 +27,19 @@ def download_file(
     Example: `download_file("GET", "https://google.com", "google.html")`
     """
 
-    response = requests.request(method, url, stream=True, **kwargs)
-    response.raise_for_status() # Throw an error for bad status codes.
+    with requests.request(method, url, stream=True, **kwargs) as response:
+        response.raise_for_status() # Raise an error for bad status codes.
 
-    bytes_total = response.headers.get("content-length")
-    if bytes_total is not None:
-        bytes_total = int(bytes_total)
-    bytes_downloaded = 0
+        bytes_total = response.headers.get("content-length")
+        if bytes_total is not None:
+            bytes_total = int(bytes_total)
+        bytes_downloaded = 0
 
-    with open(file_, "wb") as handle:
-        for block in response.iter_content(32 * 1024):
-            handle.write(block)
-            bytes_downloaded += len(block)
-            progress_callback(bytes_downloaded, bytes_total)
+        with open(file_, "wb") as handle:
+            for block in response.iter_content(32 * 1024):
+                handle.write(block)
+                bytes_downloaded += len(block)
+                progress_callback(bytes_downloaded, bytes_total)
 
 def extract_tar(archive, directory, strip_components=0):
     """Extract `archive` into `directory`."""
