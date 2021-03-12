@@ -10,6 +10,7 @@ import dataclasses
 import argparse
 import time
 import datetime
+import shutil
 import github
 import requests
 
@@ -55,11 +56,13 @@ class Repo:
     """Information about a GitHub repository to download."""
     name: str
     tarball_url: str
+    clone_url: str
     archive_path: str
     extract_path: str
 
-def get_repo(repo, remove_after_extraction=False, progress_str=None):
-    """Download and extract the `Repo` object `repo`."""
+def download_repo_by_archive(
+        repo, remove_after_extraction=True, progress_str=None):
+    """Download and extract the archive for the `Repo` object `repo`."""
 
     if progress_str is not None:
         progress_formatted = " ({})".format(progress_str)
@@ -95,6 +98,29 @@ def get_repo(repo, remove_after_extraction=False, progress_str=None):
 
     if remove_after_extraction:
         os.remove(repo.archive_path)
+
+def download_repo_by_clone(repo, remove_dotgit=True, progress_str=None):
+    """Clone the `Repo` object `repo`."""
+
+    if progress_str is not None:
+        progress_formatted = " ({})".format(progress_str)
+    else:
+        progress_formatted = ""
+
+    if os.path.isdir(repo.extract_path):
+        message("Skipping already cloned{}: {}".format(
+            progress_formatted, repo.name))
+        return
+
+    message("Cloning{}: {}".format(progress_formatted, repo.name))
+
+    subprocess.run(
+        ["git", "-c", "http.postBuffer=1G", "clone", "--quiet", "--depth=1",
+         "--", repo.clone_url, repo.extract_path],
+        check=True)
+
+    if remove_dotgit:
+        shutil.rmtree(os.path.join(repo.extract_path, ".git"))
 
 def get_repo_search_results(ghub, n_repos, *args, **kwargs):
     """Get `n_repos` results from the search described by `args` and `kwargs`
@@ -151,6 +177,7 @@ def get_repo_data(repos):
         result.append(Repo(
             name=repo.full_name,
             tarball_url=repo.get_archive_link("tarball"),
+            clone_url=repo.clone_url,
             archive_path=os.path.join(
                 "repos", "archives", "{} {}.tar.gz".format(
                     repo.owner.login, repo.name)),
@@ -180,8 +207,22 @@ def parse_args():
         help="download repositories in this language")
 
     parser.add_argument(
+        "--method", choices=["archive", "clone"], default="archive",
+        help="whether to download and extract .tar.gz archives from GitHub " +
+        "or clone the repos (more reliable)")
+    # Getting the repos by cloning is more reliable than by downloading archives
+    # because as of 2021-03, GitHub drops connections after about 20 minutes of
+    # downloading, causing an `IncompleteRead(0 bytes read)` error. The problem
+    # isn't with this program because this also happens with other download
+    # utilities -- for example, wget shows `Read error at byte <number>`.
+
+    parser.add_argument(
         "--keep-archives", action="store_true",
-        help="keep archives after extraction")
+        help="keep archives after extraction (when --method is `archive`)")
+
+    parser.add_argument(
+        "--keep-dotgit", action="store_true",
+        help="keep .git after cloning (when --method is `clone`)")
 
     return parser.parse_args()
 
@@ -201,14 +242,22 @@ def main():
 
     to_download = get_repo_data(repos)
 
-    os.makedirs(os.path.join("repos", "archives"), exist_ok=True)
+    if args.method == "archive":
+        os.makedirs(os.path.join("repos", "archives"), exist_ok=True)
     os.makedirs(os.path.join("repos", "extracted"), exist_ok=True)
 
     for i_repo, repo_info in enumerate(to_download):
-        get_repo(
-            repo_info,
-            remove_after_extraction=not args.keep_archives,
-            progress_str="{}/{}".format(i_repo + 1, len(to_download)))
+        progress_str = "{}/{}".format(i_repo + 1, len(to_download))
+        if args.method == "archive":
+            download_repo_by_archive(
+                repo_info,
+                remove_after_extraction=not args.keep_archives,
+                progress_str=progress_str)
+        else:
+            download_repo_by_clone(
+                repo_info,
+                remove_dotgit=not args.keep_dotgit,
+                progress_str=progress_str)
 
 if __name__ == "__main__":
     main()
