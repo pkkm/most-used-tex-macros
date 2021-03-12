@@ -179,6 +179,10 @@ def parse_args():
         "--language", default="TeX",
         help="download repositories in this language")
 
+    parser.add_argument(
+        "--keep-archives", action="store_true",
+        help="keep archives after extraction")
+
     return parser.parse_args()
 
 def main():
@@ -203,6 +207,7 @@ def main():
     for i_repo, repo_info in enumerate(to_download):
         get_repo(
             repo_info,
+            remove_after_extraction=not args.keep_archives,
             progress_str="{}/{}".format(i_repo + 1, len(to_download)))
 
 if __name__ == "__main__":
