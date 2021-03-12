@@ -207,7 +207,7 @@ def parse_args():
         help="download repositories in this language")
 
     parser.add_argument(
-        "--method", choices=["archive", "clone"], default="archive",
+        "--method", choices=["archive", "clone"], default="clone",
         help="whether to download and extract .tar.gz archives from GitHub " +
         "or clone the repos (more reliable)")
     # Getting the repos by cloning is more reliable than by downloading archives
