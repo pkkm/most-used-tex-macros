@@ -120,7 +120,7 @@ updateStatsFromFile stats path = do
   return $ updateStatsFromText stats contents
 
 texFiles :: IO [FilePath]
-texFiles = Find.find (return True) isTexFile $ "repos" </> "extracted"
+texFiles = Find.find (return True) isTexFile $ "repos" </> "ready"
   where isTexFile = Find.fileType ==? Find.RegularFile &&?
           (Find.extension ==? ".tex" ||? Find.extension ==? ".TEX")
 

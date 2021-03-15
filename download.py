@@ -182,7 +182,7 @@ def get_repo_data(repos):
                 "repos", "archives", "{} {}.tar.gz".format(
                     repo.owner.login, repo.name)),
             extract_path=os.path.join(
-                "repos", "extracted", "{} {}".format(
+                "repos", "ready", "{} {}".format(
                     repo.owner.login, repo.name))))
 
     return result
@@ -244,7 +244,7 @@ def main():
 
     if args.method == "archive":
         os.makedirs(os.path.join("repos", "archives"), exist_ok=True)
-    os.makedirs(os.path.join("repos", "extracted"), exist_ok=True)
+    os.makedirs(os.path.join("repos", "ready"), exist_ok=True)
 
     for i_repo, repo_info in enumerate(to_download):
         progress_str = "{}/{}".format(i_repo + 1, len(to_download))
