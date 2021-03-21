@@ -20,6 +20,7 @@ import qualified System.IO as IO
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Text (Text)
+import qualified Data.Text as Text
 import System.FilePath ((</>))
 import System.FilePath.Find ((==?), (&&?), (||?))
 import qualified System.FilePath.Find as Find
@@ -50,6 +51,16 @@ import Formatting (format, (%))
 
 data Macro = Macro Text deriving (Eq, Show)
 
+parseLeftRight :: P.Parser Macro
+parseLeftRight = do
+  P.char '\\'
+  name <- P.choice $ map P.string
+    [ "left", "bigl", "Bigl", "biggl", "Biggl"
+    , "right", "bigr", "Bigr", "biggr", "Biggr" ]
+  delimiter <- P.string "\\{" <|> P.string "\\}" <|>
+    (Text.singleton <$> P.anyChar)
+  return $ Macro $ name <> delimiter
+
 parseMacroName :: P.Parser Text
 parseMacroName = P.takeWhile1 $ P.inClass "a-zA-Z@"
 
@@ -64,9 +75,7 @@ parseMacro :: P.Parser Macro
 parseMacro = do
   P.char '\\'
   name <- parseMacroName
-  if name == "begin" || name == "end"
-    then fail "\\begin and \\end are handled by another parser"
-    else return $ Macro name
+  return $ Macro name
 
 -- Get all matches of a parser (like in a regular expression library).
 allMatches :: P.Parser a -> P.Parser [a]
@@ -74,7 +83,7 @@ allMatches parser = P.many' loop
   where loop = parser <|> (P.anyChar >> loop)
 
 parseTexFile :: P.Parser [Macro]
-parseTexFile = allMatches $ parseEnv <|> parseMacro
+parseTexFile = allMatches $ parseLeftRight <|> parseEnv <|> parseMacro
 
 -- * Macro statistics data structure.
 
