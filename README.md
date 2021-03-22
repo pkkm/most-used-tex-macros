@@ -25,8 +25,10 @@ In addition, the Haskell program requires the `stack` binary, available at [hask
 First, download the top N most starred TeX GitHub repositories to the `repos` directory:
 
 ```sh
-./download.py --n-repos=500
+./download.py --n-repos=500 --token=<your GitHub token>
 ```
+
+(`--token` is optional but recommended because authenticated users have higher rate limits.)
 
 Then, analyze the code:
 
