@@ -11,6 +11,7 @@ import argparse
 import time
 import datetime
 import shutil
+import typing
 import github
 import requests
 
@@ -55,7 +56,7 @@ def extract_tar(archive, directory, strip_components=0):
 class Repo:
     """Information about a GitHub repository to download."""
     name: str
-    tarball_url: str
+    tarball_url: typing.Optional[str]
     clone_url: str
     archive_path: str
     extract_path: str
@@ -159,7 +160,7 @@ def get_repo_search_results(ghub, n_repos, *args, **kwargs):
 
     return result
 
-def get_repo_data(repos):
+def get_repo_data(ghub, repos, get_tarball_urls=True):
     """Convert `github.Repository.Repository` objects into `Repo` by retrieving
     appropriate information.
     """
@@ -174,9 +175,14 @@ def get_repo_data(repos):
                 i_repo + 1, len(repos)),
             overwrite_prev_line=True)
 
+        if get_tarball_urls:
+            tarball_url = repo.get_archive_link("tarball")
+        else:
+            tarball_url = None
+
         result.append(Repo(
             name=repo.full_name,
-            tarball_url=repo.get_archive_link("tarball"),
+            tarball_url=tarball_url,
             clone_url=repo.clone_url,
             archive_path=os.path.join(
                 "repos", "archives", "{} {}.tar.gz".format(
@@ -240,7 +246,9 @@ def main():
         sort="stars",
         order="desc")
 
-    to_download = get_repo_data(repos)
+    to_download = get_repo_data(
+        ghub, repos,
+        get_tarball_urls=args.method == "archive")
 
     if args.method == "archive":
         os.makedirs(os.path.join("repos", "archives"), exist_ok=True)
