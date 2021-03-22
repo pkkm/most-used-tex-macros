@@ -123,6 +123,16 @@ def download_repo_by_clone(repo, remove_dotgit=True, progress_str=None):
     if remove_dotgit:
         shutil.rmtree(os.path.join(repo.extract_path, ".git"))
 
+def seconds_for_rate_limit(limit):
+    """Return the number of seconds we need to sleep to ensure that we don't
+    exceed `limit`, a `github.Rate.Rate` object.
+    """
+    if limit.remaining != 0:
+        return 0
+    now = datetime.datetime.now(datetime.timezone.utc)
+    reset = limit.reset.replace(tzinfo=datetime.timezone.utc)
+    return (reset - now).total_seconds() + 5 # The 5 was found experimentally.
+
 def get_repo_search_results(ghub, n_repos, *args, **kwargs):
     """Get `n_repos` results from the search described by `args` and `kwargs`
     (which will be passed to `search_repositories`). Retrieve all the results
@@ -141,20 +151,15 @@ def get_repo_search_results(ghub, n_repos, *args, **kwargs):
             i_repo + 1, n_repos)
         message(progress_str, overwrite_prev_line=True)
 
-        # Respect the rate limit for search. Workaround for
-        # <https://github.com/PyGithub/PyGithub/issues/1319> (the github module
-        # uses the global rate limit while ignoring the search-specific one).
+        # Respect the search rate limit.
         if (i_repo + 1) % 30 == 0:
-            limit = ghub.get_rate_limit() # This doesn't count towards the limit.
-            if limit.search.remaining == 0:
-                now = datetime.datetime.now(datetime.timezone.utc)
-                reset = limit.search.reset.replace(tzinfo=datetime.timezone.utc)
-                seconds_to_sleep = (reset - now).total_seconds() + 5
-                if seconds_to_sleep > 0:
-                    message(
-                        progress_str + " (waiting due to the rate limit)",
-                        overwrite_prev_line=True)
-                    time.sleep(seconds_to_sleep)
+            limit = ghub.get_rate_limit() # Doesn't count towards the limit.
+            to_sleep = seconds_for_rate_limit(limit.search)
+            if to_sleep != 0:
+                message(
+                    progress_str + " (waiting due to the rate limit)",
+                    overwrite_prev_line=True)
+                time.sleep(to_sleep)
 
         result.append(repo)
 
@@ -170,12 +175,20 @@ def get_repo_data(ghub, repos, get_tarball_urls=True):
     result = []
 
     for i_repo, repo in enumerate(repos):
-        message(
-            "Getting repository data ({}/{})".format(
-                i_repo + 1, len(repos)),
-            overwrite_prev_line=True)
+        progress_str = "Getting repository data ({}/{})".format(
+            i_repo + 1, len(repos))
+        message(progress_str, overwrite_prev_line=True)
 
         if get_tarball_urls:
+            # Respect the core rate limit.
+            limit = ghub.get_rate_limit() # Doesn't count towards the limit.
+            to_sleep = seconds_for_rate_limit(limit.core)
+            if to_sleep != 0:
+                message(
+                    progress_str + " (waiting due to the rate limit)",
+                    overwrite_prev_line=True)
+                time.sleep(to_sleep)
+
             tarball_url = repo.get_archive_link("tarball")
         else:
             tarball_url = None
